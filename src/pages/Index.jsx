@@ -1,13 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { parse } from "json2csv";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fetchEvents, createEvent, updateEvent, deleteEvent } from "@/integrations/supabase/index.js";
 
 const Index = () => {
   const [data, setData] = useState([]);
   const [headers, setHeaders] = useState([]);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const events = await fetchEvents();
+        setHeaders(Object.keys(events[0]));
+        setData(events);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      }
+    };
+
+    loadEvents();
+  }, []);
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -29,17 +44,28 @@ const Index = () => {
     setData(updatedData);
   };
 
-  const handleAddRow = () => {
+  const handleAddRow = async () => {
     const newRow = headers.reduce((acc, header) => {
       acc[header] = "";
       return acc;
     }, {});
-    setData([...data, newRow]);
+    try {
+      const createdEvent = await createEvent(newRow);
+      setData([...data, createdEvent[0]]);
+    } catch (error) {
+      console.error("Error creating event:", error);
+    }
   };
 
-  const handleRemoveRow = (rowIndex) => {
-    const updatedData = data.filter((_, index) => index !== rowIndex);
-    setData(updatedData);
+  const handleRemoveRow = async (rowIndex) => {
+    const eventId = data[rowIndex].id;
+    try {
+      await deleteEvent(eventId);
+      const updatedData = data.filter((_, index) => index !== rowIndex);
+      setData(updatedData);
+    } catch (error) {
+      console.error("Error deleting event:", error);
+    }
   };
 
   const handleDownload = () => {
